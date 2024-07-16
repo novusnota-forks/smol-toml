@@ -4,11 +4,6 @@
 		"@tsconfig/node-lts/tsconfig.json"
 	],
 	"compilerOptions": {
-		// As much as I'd love to ditch CJS, it has many reasons to still exists.
-		// To provide support for CJS downstream users, it is built as a CJS module.
-		// This may be revisited once synchronous import of ESM is stable and more mature.
-		"module": "CommonJS",
-		"moduleResolution": "Node10",
 		"declaration": true,
 		"isolatedModules": false,
 		"preserveConstEnums": false,
