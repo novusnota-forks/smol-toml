@@ -26,10 +26,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-export { TomlError } from './error.js'
-export { TomlDate } from './date.js'
+import { parse } from './parse.js'
+import { stringify } from './stringify.js'
 
-export { parse } from './parse.js'
-export { stringify } from './stringify.js'
+import { TomlDate } from './date.js'
+import { TomlError } from './error.js'
 
 export type { TomlPrimitive } from './util.js'
+export default { parse, stringify, TomlDate, TomlError }
+export { parse, stringify, TomlDate, TomlError }
