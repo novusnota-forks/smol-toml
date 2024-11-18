@@ -26,8 +26,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-const BARE_KEY = /^[a-z0-9-_]+$/i
+let BARE_KEY = /^[a-z0-9-_]+$/i
 
+type ExtendedType = ReturnType<typeof extendedTypeOf>
 function extendedTypeOf (obj: any) {
 	let type = typeof obj
 	if (type === 'object') {
@@ -50,7 +51,11 @@ function formatString (s: string) {
 	return JSON.stringify(s).replace(/\x7f/g, '\\u007f')
 }
 
-function stringifyValue (val: any, type = extendedTypeOf(val)) {
+function stringifyValue (val: any, type: ExtendedType, depth: number) {
+	if (depth === 0) {
+		throw new Error("Could not stringify the object: maximum object depth exceeded")
+	}
+
 	if (type === 'number') {
 		if (isNaN(val)) return 'nan'
 		if (val === Infinity) return 'inf'
@@ -75,15 +80,15 @@ function stringifyValue (val: any, type = extendedTypeOf(val)) {
 	}
 
 	if (type === 'object') {
-		return stringifyInlineTable(val)
+		return stringifyInlineTable(val, depth)
 	}
 
 	if (type === 'array') {
-		return stringifyArray(val)
+		return stringifyArray(val, depth)
 	}
 }
 
-function stringifyInlineTable (obj: any) {
+function stringifyInlineTable (obj: any, depth: number) {
 	let keys = Object.keys(obj)
 	if (keys.length === 0) return '{}'
 
@@ -94,13 +99,13 @@ function stringifyInlineTable (obj: any) {
 
 		res += BARE_KEY.test(k) ? k : formatString(k)
 		res += ' = '
-		res += stringifyValue(obj[k])
+		res += stringifyValue(obj[k], extendedTypeOf(obj[k]), depth - 1)
 	}
 
 	return res + ' }'
 }
 
-function stringifyArray (array: any[]) {
+function stringifyArray (array: any[], depth: number) {
 	if (array.length === 0) return '[]'
 
 	let res = '[ '
@@ -110,24 +115,32 @@ function stringifyArray (array: any[]) {
 			throw new TypeError('arrays cannot contain null or undefined values')
 		}
 
-		res += stringifyValue(array[i])
+		res += stringifyValue(array[i], extendedTypeOf(array[i]), depth - 1)
 	}
 
 	return res + ' ]'
 }
 
-function stringifyArrayTable (array: any[], key: string) {
+function stringifyArrayTable (array: any[], key: string, depth: number) {
+	if (depth === 0) {
+		throw new Error("Could not stringify the object: maximum object depth exceeded")
+	}
+
 	let res = ''
 	for (let i = 0; i < array.length; i++) {
 		res += `[[${key}]]\n`
-		res += stringifyTable(array[i], key)
+		res += stringifyTable(array[i], key, depth)
 		res += '\n\n'
 	}
 
 	return res
 }
 
-function stringifyTable (obj: any, prefix = '') {
+function stringifyTable (obj: any, prefix: string, depth: number) {
+	if (depth === 0) {
+		throw new Error("Could not stringify the object: maximum object depth exceeded")
+	}
+
 	let preamble = ''
 	let tables = ''
 
@@ -135,7 +148,7 @@ function stringifyTable (obj: any, prefix = '') {
 	for (let i = 0; i < keys.length; i++) {
 		let k = keys[i]!
 		if (obj[k] !== null && obj[k] !== void 0) {
-			let type = extendedTypeOf(obj[k])
+			let type: ExtendedType = extendedTypeOf(obj[k])
 			if (type === 'symbol' || type === 'function') {
 				throw new TypeError(`cannot serialize values of type '${type}'`)
 			}
@@ -143,16 +156,16 @@ function stringifyTable (obj: any, prefix = '') {
 			let key = BARE_KEY.test(k) ? k : formatString(k)
 
 			if (type === 'array' && isArrayOfTables(obj[k])) {
-				tables += stringifyArrayTable(obj[k], prefix ? `${prefix}.${key}` : key)
+				tables += stringifyArrayTable(obj[k], prefix ? `${prefix}.${key}` : key, depth - 1)
 			} else if (type === 'object') {
 				let tblKey = prefix ? `${prefix}.${key}` : key
 				tables += `[${tblKey}]\n`
-				tables += stringifyTable(obj[k], tblKey)
+				tables += stringifyTable(obj[k], tblKey, depth - 1)
 				tables += '\n\n'
 			} else {
 				preamble += key
 				preamble += ' = '
-				preamble += stringifyValue(obj[k], type)
+				preamble += stringifyValue(obj[k], type, depth)
 				preamble += '\n'
 			}
 		}
@@ -161,10 +174,11 @@ function stringifyTable (obj: any, prefix = '') {
 	return `${preamble}\n${tables}`.trim()
 }
 
-export function stringify (obj: any) {
+export function stringify (obj: any, opts?: { maxDepth?: number }) {
 	if (extendedTypeOf(obj) !== 'object') {
 		throw new TypeError('stringify can only be called with an object')
 	}
 
-	return stringifyTable(obj)
+	let maxDepth = opts?.maxDepth ?? 1000
+	return stringifyTable(obj, '', maxDepth)
 }

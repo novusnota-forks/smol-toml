@@ -57,12 +57,19 @@ function sliceAndTrimEndOf (str: string, startPtr: number, endPtr: number, allow
 	return [ trimmed, commentIdx ]
 }
 
-export function extractValue (str: string, ptr: number, end?: string): [ TomlPrimitive, number ] {
+export function extractValue (str: string, ptr: number, end: string | undefined, depth: number): [ TomlPrimitive, number ] {
+	if (depth === 0) {
+		throw new TomlError('document contains excessively nested structures. aborting.', {
+			toml: str,
+			ptr: ptr
+		})
+	}
+
 	let c = str[ptr]
 	if (c === '[' || c === '{') {
 		let [ value, endPtr ] = c === '['
-			? parseArray(str, ptr)
-			: parseInlineTable(str, ptr)
+			? parseArray(str, ptr, depth)
+			: parseInlineTable(str, ptr, depth)
 
 		let newPtr = skipUntil(str, endPtr, ',', end)
 		if (end === '}') {

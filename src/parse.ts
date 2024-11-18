@@ -113,7 +113,8 @@ function peekTable (key: string[], table: Record<string, TomlPrimitive>, meta: M
 	return [ k!, t, state.c ]
 }
 
-export function parse (toml: string): Record<string, TomlPrimitive> {
+export function parse (toml: string, opts?: { maxDepth: number }): Record<string, TomlPrimitive> {
+	let maxDepth = opts?.maxDepth ?? 1000
 	let res = {}
 	let meta = {}
 
@@ -157,7 +158,7 @@ export function parse (toml: string): Record<string, TomlPrimitive> {
 				})
 			}
 
-			let v = extractValue(toml, k[1])
+			let v = extractValue(toml, k[1], void 0, maxDepth)
 			p[1][p[0]] = v[0]
 			ptr = v[1]
 		}
